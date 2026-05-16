@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UniNotice AI · 학과 공지 챗봇</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:     #080E1D;
+      --bg-surface:  #0F172A;
+      --bg-elevated: #162033;
+      --bg-hover:    #1C2944;
+      --border:      rgba(255,255,255,0.07);
+      --border-mid:  rgba(255,255,255,0.12);
+      --accent:      #4F9EFF;
+      --accent-soft: rgba(79,158,255,0.18);
+      --accent-glow: rgba(79,158,255,0.28);
+      --accent-2:    #A78BFA;
+      --grad:        linear-gradient(135deg, #4F9EFF 0%, #A78BFA 100%);
+      --text-1:      #EEF2FF;
+      --text-2:      #8899CC;
+      --text-3:      #3D4F7A;
+      --success:     #34D399;
+      --sidebar-w:   288px;
+    }
+
+    html, body { height: 100%; font-family: 'Noto Sans KR', sans-serif; }
+    body { background: var(--bg-base); color: var(--text-1); overflow: hidden; }
+    button { font-family: inherit; }
+
+    /* ========== SCROLLBARS ========== */
+    * { scrollbar-width: thin; scrollbar-color: var(--text-3) transparent; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--text-3); border-radius: 4px; }
+
+    /* =====================================================
+       LOGIN PAGE
+    ===================================================== */
+    #loginPage {
+      position: fixed; inset: 0; z-index: 900;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg-base);
+      background-image:
+        radial-gradient(ellipse at 15% 50%, rgba(79,158,255,0.14) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 50%, rgba(167,139,250,0.12) 0%, transparent 50%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='1' fill='rgba(255,255,255,0.025)'/%3E%3C/svg%3E");
+    }
+
+    .login-wrap {
+      display: flex; gap: 0; border-radius: 28px; overflow: hidden;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.7);
+      animation: fadeSlide 0.65s cubic-bezier(0.22,1,0.36,1);
+    }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(28px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)  scale(1); }
+    }
+
+    /* left decorative panel */
+    .login-deco {
+      width: 220px;
+      background: var(--grad);
+      padding: 48px 32px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      position: relative; overflow: hidden;
+    }
+    .login-deco::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 400'%3E%3Ccircle cx='160' cy='80' r='120' fill='rgba(255,255,255,0.08)'/%3E%3Ccircle cx='20' cy='320' r='100' fill='rgba(255,255,255,0.06)'/%3E%3C/svg%3E");
+      background-size: cover;
+    }
+    .login-deco-brand { position: relative; z-index: 1; }
+    .login-deco-icon  { font-size: 42px; margin-bottom: 12px; }
+    .login-deco-name  {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 22px; font-weight: 800; color: white; line-height: 1.2;
+    }
+    .login-deco-name span { opacity: 0.75; font-weight: 500; }
+    .login-deco-footer {
+      position: relative; z-index: 1;
+      font-size: 12px; color: rgba(255,255,255,0.65); line-height: 1.6;
+    }
+    .login-deco-dots  { display: flex; gap: 6px; margin-top: 16px; }
+    .login-deco-dots i {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(255,255,255,0.4);
+    }
+    .login-deco-dots i:first-child { background: white; width: 18px; border-radius: 3px; }
+
+    /* right form panel */
+    .login-form-panel {
+      width: 360px;
+      background: var(--bg-surface);
+      padding: 48px 40px;
+      border: 1px solid var(--border);
+      border-left: none; border-radius: 0 28px 28px 0;
+    }
+    .login-title { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+    .login-sub   { font-size: 13px; color: var(--text-2); margin-bottom: 36px; }
+
+    .form-group   { margin-bottom: 16px; }
+    .form-label   {
+      font-size: 12px; font-weight: 600; color: var(--text-2);
+      display: block; margin-bottom: 7px; letter-spacing: 0.3px;
+    }
+    .form-input {
+      width: 100%; padding: 11px 15px;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-radius: 11px; color: var(--text-1); font-size: 14px;
+      font-family: 'Noto Sans KR', sans-serif; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .form-input::placeholder { color: var(--text-3); }
+
+    .btn-login {
+      width: 100%; padding: 13px;
+      background: var(--grad); border: none; border-radius: 12px;
+      color: white; font-size: 15px; font-weight: 600; cursor: pointer;
+      font-family: 'Noto Sans KR', sans-serif;
+      transition: opacity .2s, transform .1s; margin-top: 8px;
+      position: relative; overflow: hidden;
+    }
+    .btn-login::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(rgba(255,255,255,0), rgba(255,255,255,0.12));
+    }
+    .btn-login:hover { opacity: 0.88; }
+    .btn-login:active { transform: scale(0.98); }
+
+    .login-hint {
+      margin-top: 20px; text-align: center;
+      font-size: 11px; color: var(--text-3); line-height: 1.5;
+    }
+
+    /* =====================================================
+       MAIN APP
+    ===================================================== */
+    #mainApp {
+      display: none; height: 100vh;
+    }
+    #mainApp.visible {
+      display: flex; animation: appIn .4s ease;
+    }
+    @keyframes appIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* =====================================================
+       SIDEBAR
+    ===================================================== */
+    .sidebar {
+      width: var(--sidebar-w); flex-shrink: 0;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    .sb-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sb-logo-icon {
+      width: 34px; height: 34px; border-radius: 10px;
+      background: var(--grad);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; flex-shrink: 0;
+    }
+    .sb-logo-text {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 15px; font-weight: 800; color: var(--text-1);
+    }
+    .sb-logo-text em { color: var(--accent); font-style: normal; }
+
+    .sb-body {
+      flex: 1; overflow-y: auto; padding-bottom: 8px;
+    }
+
+    .sb-section { padding: 18px 0 4px; }
+    .sb-section-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.4px;
+      color: var(--text-3); text-transform: uppercase;
+      padding: 0 18px 10px;
+    }
+
+    /* ── Tag chips ── */
+    .tag-grid { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px; }
+    .tag-chip {
+      padding: 5px 11px; border-radius: 20px;
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      color: var(--text-2); transition: all .15s; user-select: none;
+    }
+    .tag-chip:hover { border-color: var(--accent); color: var(--accent); }
+    .tag-chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+    /* ── Dept tree ── */
+    .dept-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+    .dept-item {}
+    .dept-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 18px; cursor: pointer; transition: background .12s;
+      user-select: none;
+    }
+    .dept-header:hover { background: var(--bg-hover); }
+    .dept-header.selected { color: var(--accent); }
+    .dept-label {
+      font-size: 13px; font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .dept-badge {
+      font-size: 10px; font-weight: 600; padding: 1px 7px;
+      border-radius: 10px; background: var(--bg-hover);
+      color: var(--text-3);
+    }
+    .dept-header.selected .dept-badge { background: var(--accent-soft); color: var(--accent); }
+    .dept-chevron {
+      width: 15px; height: 15px; color: var(--text-3); flex-shrink: 0;
+      transition: transform .22s; stroke: currentColor;
+    }
+    .dept-item.open .dept-chevron { transform: rotate(180deg); }
+
+    .major-list {
+      max-height: 0; overflow: hidden;
+      transition: max-height .3s cubic-bezier(.4,0,.2,1);
+    }
+    .dept-item.open .major-list { max-height: 800px; }
+
+    .major-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 7px 18px 7px 36px; cursor: pointer;
+      transition: background .12s; user-select: none;
+    }
+    .major-item:hover { background: var(--bg-hover); }
+    .major-item.selected { color: var(--accent); background: var(--accent-soft); }
+    .major-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--text-3); flex-shrink: 0; transition: background .15s;
+    }
+    .major-item.selected .major-dot { background: var(--accent); }
+    .major-name { font-size: 12px; color: var(--text-2); }
+    .major-item.selected .major-name { color: var(--accent); }
+
+    .sb-footer {
+      padding: 14px 18px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 11px;
+    }
+    .user-ava {
+      width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+      background: var(--grad);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: white;
+    }
+    .user-meta { flex: 1; min-width: 0; }
+    .user-name { font-size: 13px; font-weight: 600; truncate: ellipsis; }
+    .user-stat { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+    .logout-btn {
+      padding: 7px; border-radius: 8px; cursor: pointer;
+      color: var(--text-3); background: transparent; border: none;
+      transition: all .15s; display: flex; align-items: center;
+    }
+    .logout-btn:hover { background: var(--bg-hover); color: var(--text-2); }
+
+    /* =====================================================
+       CHAT AREA
+    ===================================================== */
+    .chat-area {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden;
+      background: var(--bg-base);
+      background-image:
+        radial-gradient(ellipse at 70% 0%, rgba(79,158,255,0.07) 0%, transparent 45%),
+        radial-gradient(ellipse at 30% 100%, rgba(167,139,250,0.06) 0%, transparent 45%);
+    }
+
+    /* header */
+    .chat-header {
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 14px;
+      background: rgba(8,14,29,0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .ch-icon {
+      width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
+      background: var(--bg-elevated); border: 1px solid var(--border-mid);
+      display: flex; align-items: center; justify-content: center; font-size: 18px;
+    }
+    .ch-info { flex: 1; }
+    .ch-title { font-size: 15px; font-weight: 600; }
+    .ch-sub   { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+    .ch-status {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--success);
+    }
+    .ch-status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--success); animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52,211,153,0.4); }
+      50%      { box-shadow: 0 0 0 5px rgba(52,211,153,0); }
+    }
+    .clear-btn {
+      padding: 6px 13px; border-radius: 9px; font-size: 12px;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      color: var(--text-2); cursor: pointer; transition: all .15s;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .clear-btn:hover { border-color: var(--border-mid); color: var(--text-1); }
+
+    /* active filter bar */
+    .filter-bar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+      padding: 8px 24px; border-bottom: 1px solid var(--border);
+      background: rgba(8,14,29,0.5);
+      min-height: 0; transition: all .2s;
+    }
+    .filter-bar:empty, .filter-bar.hidden { display: none; }
+    .filter-bar-label { font-size: 11px; color: var(--text-3); }
+    .fpill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 9px; border-radius: 20px;
+      font-size: 11px; font-weight: 500;
+      background: var(--accent-soft); border: 1px solid var(--accent);
+      color: var(--accent);
+    }
+    .fpill-x {
+      cursor: pointer; opacity: .65; font-size: 13px;
+      line-height: 1; margin-left: 2px;
+    }
+    .fpill-x:hover { opacity: 1; }
+
+    /* messages */
+    .msgs {
+      flex: 1; overflow-y: auto; padding: 28px 24px;
+      display: flex; flex-direction: column; gap: 22px;
+    }
+
+    /* welcome */
+    .welcome {
+      margin: auto; text-align: center; max-width: 480px; padding: 32px 16px;
+      animation: fadeSlide .5s ease;
+    }
+    .welcome-emoji { font-size: 58px; margin-bottom: 18px; }
+    .welcome-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 22px; font-weight: 800; margin-bottom: 10px;
+    }
+    .welcome-desc { font-size: 14px; color: var(--text-2); line-height: 1.75; }
+    .welcome-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 22px; }
+    .wchip {
+      padding: 8px 16px; border-radius: 20px; font-size: 13px; cursor: pointer;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      color: var(--text-2); transition: all .15s;
+    }
+    .wchip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+    /* message rows */
+    .msg-row {
+      display: flex; gap: 11px;
+      animation: msgIn .28s cubic-bezier(0.22,1,0.36,1);
+    }
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .msg-row.user { flex-direction: row-reverse; }
+
+    .msg-ava {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 15px;
+    }
+    .msg-ava.bot { background: var(--bg-elevated); border: 1px solid var(--border-mid); }
+    .msg-ava.user { background: var(--grad); font-size: 13px; font-weight: 700; color: white; }
+
+    .msg-body { max-width: 68%; display: flex; flex-direction: column; gap: 4px; }
+    .msg-row.user .msg-body { align-items: flex-end; }
+
+    .bubble {
+      padding: 11px 15px; border-radius: 18px;
+      font-size: 14px; line-height: 1.65;
+    }
+    .bot .bubble {
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+    .user .bubble {
+      background: var(--grad); color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .msg-time { font-size: 10px; color: var(--text-3); padding: 0 4px; }
+
+    /* notice card */
+    .notice-card {
+      margin-top: 10px; padding: 14px 16px;
+      background: var(--bg-base); border: 1px solid var(--border-mid);
+      border-left: 3px solid var(--accent); border-radius: 12px;
+      font-size: 13px; line-height: 1.65;
+      transition: border-color .15s;
+    }
+    .notice-card:hover { border-left-color: var(--accent-2); }
+    .nc-meta {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      margin-bottom: 7px;
+    }
+    .nc-tag {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+      background: var(--accent-soft); color: var(--accent);
+      border: 1px solid rgba(79,158,255,0.35);
+    }
+    .nc-date, .nc-dept { font-size: 11px; color: var(--text-3); }
+    .nc-title { font-weight: 600; color: var(--text-1); margin-bottom: 5px; }
+    .nc-body  { color: var(--text-2); font-size: 13px; }
+
+    /* typing */
+    .typing-row { display: flex; gap: 11px; align-items: flex-end; }
+    .typing-bubble {
+      padding: 12px 16px;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-radius: 18px; border-bottom-left-radius: 4px;
+      display: flex; gap: 5px; align-items: center;
+    }
+    .t-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--text-3); animation: bounce 1.2s infinite;
+    }
+    .t-dot:nth-child(2) { animation-delay: 0.2s; }
+    .t-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%,60%,100% { transform: translateY(0); opacity: .5; }
+      30%          { transform: translateY(-6px); opacity: 1; }
+    }
+
+    /* ── Input ── */
+    .input-zone {
+      padding: 14px 24px 20px;
+      background: rgba(8,14,29,0.8);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid var(--border);
+    }
+    .input-wrap {
+      display: flex; align-items: flex-end; gap: 10px;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-radius: 16px; padding: 10px 12px 10px 16px;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .input-wrap:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .chat-ta {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: var(--text-1); font-size: 14px; line-height: 1.55;
+      resize: none; font-family: 'Noto Sans KR', sans-serif;
+      max-height: 120px; overflow-y: auto;
+    }
+    .chat-ta::placeholder { color: var(--text-3); }
+    .send-btn {
+      width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+      background: var(--grad); border: none; cursor: pointer; color: white;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity .2s, transform .1s;
+    }
+    .send-btn:hover { opacity: 0.85; }
+    .send-btn:active { transform: scale(0.92); }
+    .send-btn:disabled { opacity: .3; cursor: not-allowed; transform: none; }
+    .input-hint { font-size: 11px; color: var(--text-3); text-align: center; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     LOGIN PAGE
+============================================================ -->
+<div id="loginPage">
+  <div class="login-wrap">
+
+    <!-- decorative left panel -->
+    <div class="login-deco">
+      <div class="login-deco-brand">
+        <div class="login-deco-icon">🎓</div>
+        <div class="login-deco-name">Uni<br><span>Notice AI</span></div>
+      </div>
+      <div class="login-deco-footer">
+        학과 공지를 AI가<br>빠르게 찾아드립니다.
+        <div class="login-deco-dots">
+          <i></i><i></i><i></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- form panel -->
+    <div class="login-form-panel">
+      <div class="login-title">로그인</div>
+      <div class="login-sub">아이디와 비밀번호를 입력해주세요.</div>
+
+      <div class="form-group">
+        <label class="form-label">아이디</label>
+        <input type="text" class="form-input" id="loginId" placeholder="아이디를 입력하세요"
+               onkeydown="if(event.key==='Enter')handleLogin()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">비밀번호</label>
+        <input type="password" class="form-input" id="loginPw" placeholder="비밀번호를 입력하세요"
+               onkeydown="if(event.key==='Enter')handleLogin()">
+      </div>
+
+      <button class="btn-login" onclick="handleLogin()">로그인 →</button>
+      <p class="login-hint">※ UI 프로토타입입니다. 어떤 정보로든 로그인 가능합니다.<br>실 서비스 연동 시 API 인증으로 교체됩니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MAIN APP
+============================================================ -->
+<div id="mainApp">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+
+    <div class="sb-header">
+      <div class="sb-logo-icon">🎓</div>
+      <div class="sb-logo-text">Uni<em>Notice</em> AI</div>
+    </div>
+
+    <div class="sb-body" id="sbBody">
+
+      <!-- Tag section -->
+      <div class="sb-section">
+        <div class="sb-section-label">공지 태그 필터</div>
+        <div class="tag-grid" id="tagGrid"></div>
+      </div>
+
+      <!-- Dept tree -->
+      <div class="sb-section">
+        <div class="sb-section-label">단과대 / 학과 선택</div>
+        <div id="deptTree"></div>
+      </div>
+
+    </div>
+
+    <div class="sb-footer">
+      <div class="user-ava" id="userAva">U</div>
+      <div class="user-meta">
+        <div class="user-name" id="userName">사용자</div>
+        <div class="user-stat">🟢 온라인</div>
+      </div>
+      <button class="logout-btn" onclick="handleLogout()" title="로그아웃">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- ── Chat Area ── -->
+  <main class="chat-area">
+
+    <div class="chat-header">
+      <div class="ch-icon">🤖</div>
+      <div class="ch-info">
+        <div class="ch-title">학과 공지 AI 어시스턴트</div>
+        <div class="ch-sub" id="ctxSub">전체 학과 공지를 검색합니다</div>
+      </div>
+      <div class="ch-status">
+        <div class="ch-status-dot"></div> 응답 가능
+      </div>
+      <button class="clear-btn" onclick="clearChat()">🗑 초기화</button>
+    </div>
+
+    <!-- Active filters bar -->
+    <div class="filter-bar hidden" id="filterBar">
+      <span class="filter-bar-label">현재 필터:</span>
+    </div>
+
+    <!-- Messages -->
+    <div class="msgs" id="msgs">
+      <div class="welcome" id="welcomeEl">
+        <div class="welcome-emoji">🎓</div>
+        <div class="welcome-title">학과 공지 AI에 오신 것을 환영합니다!</div>
+        <div class="welcome-desc">
+          왼쪽에서 단과대·학과를 선택하거나 태그로 필터링해보세요.<br>
+          아래 예시 질문을 클릭하거나 자유롭게 물어보세요.
+        </div>
+        <div class="welcome-chips">
+          <div class="wchip" onclick="quickAsk(this)">📋 최신 공지 알려줘</div>
+          <div class="wchip" onclick="quickAsk(this)">💰 장학금 공지 있어?</div>
+          <div class="wchip" onclick="quickAsk(this)">📚 수강신청 관련 공지</div>
+          <div class="wchip" onclick="quickAsk(this)">💼 취업 관련 공지 알려줘</div>
+          <div class="wchip" onclick="quickAsk(this)">🌍 해외교환학생 공지</div>
+          <div class="wchip" onclick="quickAsk(this)">🎉 학교 행사 알려줘</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-zone">
+      <div class="input-wrap">
+        <textarea class="chat-ta" id="chatTa" rows="1"
+          placeholder="공지 내용을 자유롭게 물어보세요... (Enter 전송 · Shift+Enter 줄바꿈)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMsg()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+      <div class="input-hint">Enter로 전송 · Shift+Enter로 줄바꿈</div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ================================================================
+   DATA
+================================================================ */
+const TAGS = ['일반','진로취업','학사','등록/장학','비교과','학생생활','사회봉사','글로벌'];
+
+const DEPT_TREE = [
+  {
+    name: '인문사회과학대학',
+    majors: ['역사콘텐츠전공','지적재산권전공','문헌정보학전공','한일문화콘텐츠전공',
+             '공간환경학부','공공인재학부','가족복지학과','국가안보학과']
+  },
+  {
+    name: '사범대학',
+    majors: ['국어교육과','교육학과','영어교육과','수학교육과']
+  },
+  {
+    name: '경영경제대학',
+    majors: ['경제금융학부','경영학부','글로벌경영학과','융합경영학과']
+  },
+  {
+    name: '융합공과대학',
+    majors: ['휴먼지능정보공학전공','핀테크전공','빅데이터융합전공','스마트생산전공',
+             '컴퓨터과학전공','전기공학전공','게임전공','지능IOT융합전공',
+             '생명공학전공','화학에너지공학전공','화공신소재전공']
+  },
+  {
+    name: '문화예술대학',
+    majors: ['애니메이션전공','식품영양학전공','의류학전공','스포츠건강관리전공',
+             '무용예술전공','조형예술전공','생활예술전공','음악학부']
+  },
+  {
+    name: '자유전공학부대학',
+    majors: ['자유전공']
+  }
+];
+
+const MOCK = [
+  { title:'[학사] 2025-1학기 수강신청 일정 안내', tag:'학사',    dept:'전체',        date:'2025-03-01',
+    body:'2025학년도 1학기 수강신청이 3월 5일(수)부터 시작됩니다. 학생 포털 로그인 후 수강신청 메뉴에서 신청하시기 바랍니다. 동일 시간대 과목 중복 신청 불가합니다.' },
+  { title:'[장학] 2025-1 교내 장학금 신청 안내', tag:'등록/장학', dept:'전체',        date:'2025-03-03',
+    body:'2025학년도 1학기 교내 장학금 신청을 받습니다. 직전 학기 성적 3.0 이상 학생은 학생처 홈페이지에서 3월 20일까지 신청하세요. 국가장학금 신청도 함께 확인하세요.' },
+  { title:'[취업] 삼성전자 채용 설명회 참가 안내', tag:'진로취업', dept:'융합공과대학', date:'2025-03-10',
+    body:'삼성전자 DS 부문에서 융합공과대학 학생 대상 채용 설명회를 개최합니다. 일시: 3월 15일(토) 오후 2시, 장소: 대강당 301호. 사전 등록 필수입니다.' },
+  { title:'[일반] 봄 축제 "봄날의 캠퍼스" 안내', tag:'학생생활', dept:'전체',        date:'2025-03-12',
+    body:'3월 22일~23일 양일간 봄 축제가 개최됩니다. 버스킹, 푸드트럭, 인디밴드 공연 등 다양한 행사가 준비되어 있습니다. 많은 참여 바랍니다.' },
+  { title:'[글로벌] 2025 해외교환학생 2차 모집', tag:'글로벌',   dept:'전체',        date:'2025-03-15',
+    body:'2025학년도 2학기 해외교환학생 프로그램 모집을 시작합니다. 미국, 일본, 유럽 20개 대학 지원 가능. 지원서 접수 마감: 4월 10일.' },
+  { title:'[비교과] 취업역량 강화 클리닉 운영', tag:'비교과',    dept:'전체',        date:'2025-03-18',
+    body:'자소서 클리닉, 모의면접, 직무 특강 등 취업역량 강화 비교과 프로그램이 운영됩니다. 학생처 홈페이지에서 신청 후 참여 가능하며, 비교과 마일리지 적립됩니다.' },
+  { title:'[봉사] 지역사회 봉사활동 참가자 모집', tag:'사회봉사', dept:'전체',        date:'2025-03-20',
+    body:'지역 노인정·아동센터·환경정화 봉사활동 참가자를 모집합니다. 봉사학점 인정(2시간 = 1학점). 사회봉사센터 홈페이지에서 신청하세요.' },
+  { title:'[일반] 도서관 이용 시간 변경 안내', tag:'일반',       dept:'전체',        date:'2025-03-22',
+    body:'3월 25일부터 중앙도서관 이용 시간이 변경됩니다. 평일 08:00~23:00, 토요일 09:00~18:00, 일요일 휴관. 개인 열람실은 포털에서 예약 후 이용 가능합니다.' },
+];
+
+/* ================================================================
+   STATE
+================================================================ */
+let S = {
+  uid: '', activeTags: new Set(), dept: null, major: null
+};
+
+/* ================================================================
+   LOGIN / LOGOUT
+================================================================ */
+function handleLogin() {
+  const id = document.getElementById('loginId').value.trim();
+  const pw = document.getElementById('loginPw').value.trim();
+  if (!id || !pw) { shakeForm(); return; }
+
+  S.uid = id;
+  document.getElementById('userAva').textContent = id[0].toUpperCase();
+  document.getElementById('userName').textContent = id + ' 님';
+
+  document.getElementById('loginPage').style.display = 'none';
+  const app = document.getElementById('mainApp');
+  app.classList.add('visible');
+
+  buildTags();
+  buildTree();
+}
+
+function shakeForm() {
+  const card = document.querySelector('.login-wrap');
+  card.style.animation = 'none';
+  card.offsetHeight;
+  card.style.animation = 'shake .4s ease';
+}
+
+function handleLogout() {
+  if (!confirm('로그아웃 하시겠습니까?')) return;
+  document.getElementById('loginId').value = '';
+  document.getElementById('loginPw').value = '';
+  document.getElementById('mainApp').classList.remove('visible');
+  document.getElementById('loginPage').style.display = '';
+  S = { uid:'', activeTags: new Set(), dept: null, major: null };
+  clearChat();
+}
+
+/* ================================================================
+   SIDEBAR — TAGS
+================================================================ */
+function buildTags() {
+  const g = document.getElementById('tagGrid');
+  g.innerHTML = '';
+  TAGS.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'tag-chip';
+    el.textContent = t;
+    el.dataset.t = t;
+    el.onclick = () => toggleTag(t, el);
+    g.appendChild(el);
+  });
+}
+
+function toggleTag(t, el) {
+  if (S.activeTags.has(t)) { S.activeTags.delete(t); el.classList.remove('on'); }
+  else                      { S.activeTags.add(t);    el.classList.add('on'); }
+  refreshFilters();
+}
+
+/* ================================================================
+   SIDEBAR — DEPT TREE
+================================================================ */
+function buildTree() {
+  const tree = document.getElementById('deptTree');
+  tree.innerHTML = '';
+  DEPT_TREE.forEach((d, di) => {
+    const item = document.createElement('div');
+    item.className = 'dept-item';
+    item.id = 'di' + di;
+    item.innerHTML = `
+      <div class="dept-header" onclick="toggleDept(${di})">
+        <span class="dept-label">
+          ${d.name}
+          <span class="dept-badge">${d.majors.length}</span>
+        </span>
+        <svg class="dept-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2.5">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+      <div class="major-list" id="ml${di}">
+        ${d.majors.map((m, mi) => `
+          <div class="major-item" id="mi${di}_${mi}"
+               onclick="pickMajor(${di},${mi},'${d.name}','${m}')">
+            <span class="major-dot"></span>
+            <span class="major-name">${m}</span>
+          </div>
+        `).join('')}
+      </div>`;
+    tree.appendChild(item);
+    if (di < DEPT_TREE.length - 1) {
+      const hr = document.createElement('div');
+      hr.className = 'dept-divider';
+      tree.appendChild(hr);
+    }
+  });
+}
+
+function toggleDept(di) {
+  const item = document.getElementById('di' + di);
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.dept-item').forEach(el => el.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+
+function pickMajor(di, mi, deptName, majorName) {
+  document.querySelectorAll('.major-item').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('.dept-header').forEach(el => el.classList.remove('selected'));
+  document.getElementById(`mi${di}_${mi}`).classList.add('selected');
+  document.querySelector(`#di${di} .dept-header`).classList.add('selected');
+  S.dept = deptName; S.major = majorName;
+  refreshFilters();
+}
+
+function clearMajor() {
+  document.querySelectorAll('.major-item').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('.dept-header').forEach(el => el.classList.remove('selected'));
+  S.dept = null; S.major = null;
+  refreshFilters();
+}
+
+function removeTagFilter(t) {
+  S.activeTags.delete(t);
+  document.querySelectorAll('.tag-chip').forEach(el => {
+    if (el.dataset.t === t) el.classList.remove('on');
+  });
+  refreshFilters();
+}
+
+/* ================================================================
+   FILTER BAR
+================================================================ */
+function refreshFilters() {
+  const bar = document.getElementById('filterBar');
+  bar.innerHTML = '<span class="filter-bar-label">현재 필터:</span>';
+
+  if (S.major) {
+    bar.innerHTML += `<div class="fpill">🏫 ${S.dept} · ${S.major}
+      <span class="fpill-x" onclick="clearMajor()">✕</span></div>`;
+  }
+  S.activeTags.forEach(t => {
+    bar.innerHTML += `<div class="fpill">🏷 ${t}
+      <span class="fpill-x" onclick="removeTagFilter('${t}')">✕</span></div>`;
+  });
+
+  const hasFilter = S.major || S.activeTags.size > 0;
+  bar.classList.toggle('hidden', !hasFilter);
+
+  // update header subtitle
+  const sub = document.getElementById('ctxSub');
+  if (S.major) sub.textContent = `${S.major} 공지를 검색합니다`;
+  else if (S.dept) sub.textContent = `${S.dept} 공지를 검색합니다`;
+  else sub.textContent = '전체 학과 공지를 검색합니다';
+}
+
+/* ================================================================
+   CHAT
+================================================================ */
+const ta = () => document.getElementById('chatTa');
+
+// textarea auto-resize + keyboard
+window.addEventListener('DOMContentLoaded', () => {
+  ta().addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+  });
+  ta().addEventListener('input', function () {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+});
+
+function quickAsk(el) {
+  ta().value = el.textContent.replace(/^[\p{Emoji}\s]+/u,'').trim();
+  sendMsg();
+}
+
+function sendMsg() {
+  const txt = ta().value.trim();
+  if (!txt) return;
+  const wb = document.getElementById('welcomeEl');
+  if (wb) wb.remove();
+  appendMsg('user', txt);
+  ta().value = ''; ta().style.height = 'auto';
+  showTyping();
+  const delay = 800 + Math.random() * 700;
+  setTimeout(() => { hideTyping(); const r = respond(txt); appendMsg('bot', r.text, r.notices); }, delay);
+}
+
+function appendMsg(role, text, notices = []) {
+  const c   = document.getElementById('msgs');
+  const now = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+
+  const ncHtml = notices.map(n => `
+    <div class="notice-card">
+      <div class="nc-meta">
+        <span class="nc-tag">${n.tag}</span>
+        <span class="nc-date">📅 ${n.date}</span>
+        ${n.dept !== '전체' ? `<span class="nc-dept">🏫 ${n.dept}</span>` : ''}
+      </div>
+      <div class="nc-title">${n.title}</div>
+      <div class="nc-body">${n.body}</div>
+    </div>`).join('');
+
+  const avatarHtml = role === 'bot'
+    ? `<div class="msg-ava bot">🤖</div>`
+    : `<div class="msg-ava user">${(S.uid[0]||'U').toUpperCase()}</div>`;
+
+  const row = document.createElement('div');
+  row.className = `msg-row ${role}`;
+  row.innerHTML = `
+    ${role === 'user' ? '' : avatarHtml}
+    <div class="msg-body">
+      <div class="bubble">${text}${ncHtml}</div>
+      <div class="msg-time">${now}</div>
+    </div>
+    ${role === 'user' ? avatarHtml : ''}`;
+  c.appendChild(row);
+  c.scrollTop = c.scrollHeight;
+}
+
+function showTyping() {
+  const c = document.getElementById('msgs');
+  const row = document.createElement('div');
+  row.className = 'typing-row'; row.id = 'typingRow';
+  row.innerHTML = `<div class="msg-ava bot">🤖</div>
+    <div class="typing-bubble">
+      <div class="t-dot"></div><div class="t-dot"></div><div class="t-dot"></div>
+    </div>`;
+  c.appendChild(row); c.scrollTop = c.scrollHeight;
+}
+function hideTyping() { document.getElementById('typingRow')?.remove(); }
+
+function clearChat() {
+  document.getElementById('msgs').innerHTML = `
+    <div class="welcome" id="welcomeEl">
+      <div class="welcome-emoji">🎓</div>
+      <div class="welcome-title">학과 공지 AI에 오신 것을 환영합니다!</div>
+      <div class="welcome-desc">
+        왼쪽에서 단과대·학과를 선택하거나 태그로 필터링해보세요.<br>
+        아래 예시 질문을 클릭하거나 자유롭게 물어보세요.
+      </div>
+      <div class="welcome-chips">
+        <div class="wchip" onclick="quickAsk(this)">📋 최신 공지 알려줘</div>
+        <div class="wchip" onclick="quickAsk(this)">💰 장학금 공지 있어?</div>
+        <div class="wchip" onclick="quickAsk(this)">📚 수강신청 관련 공지</div>
+        <div class="wchip" onclick="quickAsk(this)">💼 취업 관련 공지 알려줘</div>
+        <div class="wchip" onclick="quickAsk(this)">🌍 해외교환학생 공지</div>
+        <div class="wchip" onclick="quickAsk(this)">🎉 학교 행사 알려줘</div>
+      </div>
+    </div>`;
+}
+
+/* ================================================================
+   MOCK RESPONSE ENGINE
+================================================================ */
+function respond(q) {
+  const lq = q.toLowerCase();
+
+  // apply dept/major filter
+  let pool = MOCK.filter(n =>
+    n.dept === '전체' || !S.dept || n.dept === S.dept
+  );
+
+  // apply tag filter
+  if (S.activeTags.size > 0)
+    pool = pool.filter(n => S.activeTags.has(n.tag));
+
+  // keyword matching → find relevant subset
+  let keyword = '검색어 관련';
+  let found = [];
+
+  if (/최신|최근|전체|공지/.test(lq)) {
+    found = pool.slice(0, 3); keyword = '최신';
+  } else if (/장학|등록|학비|장학금/.test(lq)) {
+    found = pool.filter(n => n.tag === '등록/장학'); keyword = '장학금';
+  } else if (/수강|학사|강의|시간표/.test(lq)) {
+    found = pool.filter(n => n.tag === '학사'); keyword = '수강신청/학사';
+  } else if (/취업|진로|채용|인턴|잡/.test(lq)) {
+    found = pool.filter(n => n.tag === '진로취업'); keyword = '취업/진로';
+  } else if (/글로벌|해외|교환|유학/.test(lq)) {
+    found = pool.filter(n => n.tag === '글로벌'); keyword = '글로벌/교환학생';
+  } else if (/축제|행사|이벤트|봄|학생생활/.test(lq)) {
+    found = pool.filter(n => n.tag === '학생생활'); keyword = '학생생활/행사';
+  } else if (/봉사|사회봉사/.test(lq)) {
+    found = pool.filter(n => n.tag === '사회봉사'); keyword = '사회봉사';
+  } else if (/비교과|프로그램|클리닉/.test(lq)) {
+    found = pool.filter(n => n.tag === '비교과'); keyword = '비교과';
+  } else {
+    found = pool.slice(0, 2);
+  }
+
+  const ctx = S.major
+    ? `<strong>${S.dept} · ${S.major}</strong>`
+    : S.dept
+    ? `<strong>${S.dept}</strong>`
+    : '전체 학과';
+
+  const tagCtx = S.activeTags.size > 0
+    ? ` (태그: ${[...S.activeTags].join(', ')})`
+    : '';
+
+  if (found.length === 0) {
+    return {
+      text: `${ctx}${tagCtx} 기준으로 <strong>${keyword}</strong> 관련 공지를 검색했지만 현재 조건에 맞는 공지가 없습니다.<br><br>💡 태그 필터를 해제하거나 다른 키워드로 다시 시도해보세요!`,
+      notices: []
+    };
+  }
+
+  return {
+    text: `${ctx}${tagCtx} 기준으로 <strong>'${keyword}'</strong> 관련 공지 <strong>${found.length}건</strong>을 찾았습니다:`,
+    notices: found
+  };
+}
+
+/* extra shake keyframe */
+const style = document.createElement('style');
+style.textContent = `@keyframes shake {
+  0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)}
+  60%{transform:translateX(-5px)} 80%{transform:translateX(5px)}
+}`;
+document.head.appendChild(style);
+</script>
+</body>
+</html>
