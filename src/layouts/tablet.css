@@ -1,0 +1,59 @@
+@media (min-width: 768px) and (max-width: 1024px) {
+  :root {
+    --sidebar-w: 248px;
+  }
+
+  .app-shell {
+    height: 100dvh;
+  }
+
+  .sidebar {
+    width: var(--sidebar-w);
+  }
+
+  .sb-header {
+    padding: 16px;
+  }
+
+  .sb-section-label {
+    padding-inline: 14px;
+  }
+
+  .tag-grid {
+    padding-inline: 14px;
+  }
+
+  .dept-header {
+    padding-inline: 14px;
+  }
+
+  .major-item {
+    padding-left: 30px;
+    padding-right: 14px;
+  }
+
+  .chat-header {
+    padding: 12px 18px;
+    gap: 10px;
+  }
+
+  .ch-status {
+    display: none;
+  }
+
+  .filter-bar {
+    padding-inline: 18px;
+  }
+
+  .msgs {
+    padding: 22px 18px;
+  }
+
+  .msg-body {
+    max-width: 78%;
+  }
+
+  .input-zone {
+    padding: 12px 18px 18px;
+  }
+}

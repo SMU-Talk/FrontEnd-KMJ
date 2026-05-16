@@ -1,0 +1,17 @@
+@media (min-width: 1025px) {
+  .app-shell {
+    min-width: 980px;
+  }
+
+  .chat-area {
+    min-width: 0;
+  }
+
+  .msgs {
+    padding-inline: clamp(24px, 3vw, 44px);
+  }
+
+  .msg-body {
+    max-width: min(68%, 760px);
+  }
+}

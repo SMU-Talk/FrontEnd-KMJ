@@ -14,6 +14,7 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const filters = useMemo(
     () => ({
@@ -79,19 +80,28 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isSidebarOpen ? 'sidebar-open' : ''}`}>
       <Sidebar
         activeTags={activeTags}
         openDeptIndex={openDeptIndex}
         selectedMajor={selectedMajor}
         user={user}
+        onClose={() => setIsSidebarOpen(false)}
         onLogout={logout}
-        onPickMajor={setSelectedMajor}
+        onPickMajor={(major) => {
+          setSelectedMajor(major);
+          setIsSidebarOpen(false);
+        }}
         onToggleDept={setOpenDeptIndex}
         onToggleTag={toggleTag}
       />
+      <button
+        className="sidebar-backdrop"
+        type="button"
+        aria-label="필터 패널 닫기"
+        onClick={() => setIsSidebarOpen(false)}
+      />
       <ChatArea
-        activeTags={activeTags}
         draft={draft}
         filters={filters}
         isLoading={isLoading}
@@ -101,6 +111,7 @@ export default function App() {
         onClearChat={() => setMessages([])}
         onClearMajor={() => setSelectedMajor(null)}
         onDraftChange={setDraft}
+        onOpenSidebar={() => setIsSidebarOpen(true)}
         onRemoveTag={toggleTag}
         onSend={sendQuestion}
       />
@@ -176,6 +187,7 @@ function Sidebar({
   openDeptIndex,
   selectedMajor,
   user,
+  onClose,
   onLogout,
   onPickMajor,
   onToggleDept,
@@ -188,6 +200,9 @@ function Sidebar({
         <div className="sb-logo-text">
           Uni<em>Notice</em> AI
         </div>
+        <button className="sb-close-btn" type="button" aria-label="필터 패널 닫기" onClick={onClose}>
+          ×
+        </button>
       </div>
 
       <div className="sb-body">
@@ -272,7 +287,6 @@ function DeptTree({ openDeptIndex, selectedMajor, onPickMajor, onToggleDept }) {
 }
 
 function ChatArea({
-  activeTags,
   draft,
   filters,
   isLoading,
@@ -282,6 +296,7 @@ function ChatArea({
   onClearChat,
   onClearMajor,
   onDraftChange,
+  onOpenSidebar,
   onRemoveTag,
   onSend,
 }) {
@@ -290,6 +305,9 @@ function ChatArea({
   return (
     <main className="chat-area">
       <header className="chat-header">
+        <button className="filter-toggle-btn" type="button" onClick={onOpenSidebar}>
+          필터
+        </button>
         <div className="ch-icon">🤖</div>
         <div className="ch-info">
           <h1 className="ch-title">학과 공지 AI 어시스턴트</h1>
