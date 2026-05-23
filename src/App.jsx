@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { loginWithSmu, logoutFromApi, refreshLogin, restoreLogin } from './api/authApi.js';
-import { askNotice } from './api/noticeApi.js';
+import { streamNotice } from './api/noticeApi.js';
 import { DEPT_TREE, QUICK_QUESTIONS, TAGS } from './noticeData.js';
 
 const emptyLogin = { id: '', password: '' };
@@ -109,26 +109,51 @@ export default function App() {
 
     if (!question || isLoading) return;
 
+    const botId = `bot-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const placeholderBot = makeMessage('bot', '', [], botId);
+
     setDraft('');
-    setMessages((current) => [...current, makeMessage('user', question)]);
+    setMessages((current) => [...current, makeMessage('user', question), placeholderBot]);
     setIsLoading(true);
 
-    try {
-      const reply = await askNotice({ question, filters });
-      setMessages((current) => [...current, makeMessage('bot', reply.message, reply.notices)]);
-    } catch (error) {
-      if (error.status === 401) {
-        await logoutFromApi();
-        resetSession('학교 세션이 만료되었습니다. 다시 로그인해주세요.');
-        return;
-      }
+    let sessionExpired = false;
+    let receivedFirstToken = false;
 
-      setMessages((current) => [
-        ...current,
-        makeMessage('bot', error.message || '잠시 후 다시 시도해주세요.', []),
-      ]);
-    } finally {
-      setIsLoading(false);
+    await streamNotice(
+      { question, filters },
+      {
+        onNotices: (notices) => {
+          setMessages((current) => current.map((m) => (m.id === botId ? { ...m, notices } : m)));
+        },
+        onToken: (text) => {
+          receivedFirstToken = true;
+          setMessages((current) =>
+            current.map((m) => (m.id === botId ? { ...m, text: (m.text || '') + text } : m)),
+          );
+        },
+        onError: async (error) => {
+          if (error?.status === 401) {
+            sessionExpired = true;
+            return;
+          }
+          const fallback = error?.message || '잠시 후 다시 시도해주세요.';
+          setMessages((current) =>
+            current.map((m) =>
+              m.id === botId
+                ? { ...m, text: receivedFirstToken ? (m.text || '') + `\n\n⚠️ ${fallback}` : fallback }
+                : m,
+            ),
+          );
+        },
+        onDone: () => {
+          setIsLoading(false);
+        },
+      },
+    );
+
+    if (sessionExpired) {
+      await logoutFromApi();
+      resetSession('학교 세션이 만료되었습니다. 다시 로그인해주세요.');
     }
   };
 
@@ -434,7 +459,10 @@ function FilterBar({ filters, onClearMajor, onRemoveTag }) {
 }
 
 function MessageList({ isLoading, messages, onQuickAsk, user }) {
-  const listRef = useAutoScroll(messages.length, isLoading);
+  const lastMsg = messages[messages.length - 1];
+  const hasEmptyBotPlaceholder =
+    lastMsg && lastMsg.role === 'bot' && !lastMsg.text && (lastMsg.notices?.length || 0) === 0;
+  const listRef = useAutoScroll(messages.length + (lastMsg?.text?.length || 0), isLoading);
 
   return (
     <div className="msgs" ref={listRef}>
@@ -442,7 +470,7 @@ function MessageList({ isLoading, messages, onQuickAsk, user }) {
       {messages.map((message) => (
         <MessageBubble key={message.id} message={message} user={user} />
       ))}
-      {isLoading && <TypingBubble />}
+      {isLoading && !hasEmptyBotPlaceholder && <TypingBubble />}
     </div>
   );
 }
@@ -472,6 +500,7 @@ function MessageBubble({ message, user }) {
   const isBot = message.role === 'bot';
   const avatar = isBot ? '🤖' : getInitial(user.id);
   const normalizedText = normalizeBotText(message.text);
+  const showInlineTyping = isBot && !message.text && (message.notices?.length || 0) === 0;
 
   return (
     <article className={`msg-row ${message.role}`}>
@@ -479,16 +508,24 @@ function MessageBubble({ message, user }) {
       <div className="msg-body">
         <div className="bubble">
           {isBot ? (
-            <div className="md">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkBreaks]}
-                components={{
-                  a: ({ node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />,
-                }}
-              >
-                {normalizedText}
-              </ReactMarkdown>
-            </div>
+            showInlineTyping ? (
+              <div className="inline-typing">
+                <div className="t-dot" />
+                <div className="t-dot" />
+                <div className="t-dot" />
+              </div>
+            ) : (
+              <div className="md">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkBreaks]}
+                  components={{
+                    a: ({ node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                  }}
+                >
+                  {normalizedText}
+                </ReactMarkdown>
+              </div>
+            )
           ) : (
             <p className="user-text">{message.text}</p>
           )}
@@ -607,9 +644,9 @@ function useAutoScroll(dependency, isLoading) {
   return ref;
 }
 
-function makeMessage(role, text, notices = []) {
+function makeMessage(role, text, notices = [], id) {
   return {
-    id: `${role}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    id: id || `${role}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     notices,
     role,
     text,
