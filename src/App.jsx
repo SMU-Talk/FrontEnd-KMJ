@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { loginWithSmu, logoutFromApi, refreshLogin, restoreLogin } from './api/authApi.js';
 import { askNotice } from './api/noticeApi.js';
 import { DEPT_TREE, QUICK_QUESTIONS, TAGS } from './noticeData.js';
 
@@ -7,7 +8,9 @@ const emptyLogin = { id: '', password: '' };
 export default function App() {
   const [user, setUser] = useState(null);
   const [login, setLogin] = useState(emptyLogin);
-  const [loginError, setLoginError] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [authReady, setAuthReady] = useState(false);
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [activeTags, setActiveTags] = useState([]);
   const [openDeptIndex, setOpenDeptIndex] = useState(null);
   const [selectedMajor, setSelectedMajor] = useState(null);
@@ -25,21 +28,36 @@ export default function App() {
     [activeTags, selectedMajor],
   );
 
-  const loginUser = (event) => {
-    event.preventDefault();
+  useEffect(() => {
+    let mounted = true;
 
-    if (!login.id.trim() || !login.password.trim()) {
-      setLoginError(true);
-      window.setTimeout(() => setLoginError(false), 420);
-      return;
-    }
+    restoreLogin()
+      .then((savedUser) => {
+        if (mounted && savedUser) setUser({ id: savedUser.nickname });
+      })
+      .finally(() => {
+        if (mounted) setAuthReady(true);
+      });
 
-    setUser({ id: login.id.trim() });
-  };
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-  const logout = () => {
-    if (!window.confirm('로그아웃 하시겠습니까?')) return;
+  useEffect(() => {
+    if (!user) return undefined;
 
+    const timer = window.setInterval(() => {
+      refreshLogin().catch(async () => {
+        await logoutFromApi();
+        resetSession('학교 세션이 만료되었습니다. 다시 로그인해주세요.');
+      });
+    }, 20 * 60 * 1000);
+
+    return () => window.clearInterval(timer);
+  }, [user]);
+
+  const resetSession = (message = '') => {
     setUser(null);
     setLogin(emptyLogin);
     setActiveTags([]);
@@ -47,6 +65,36 @@ export default function App() {
     setSelectedMajor(null);
     setMessages([]);
     setDraft('');
+    setLoginError(message);
+  };
+
+  const loginUser = async (event) => {
+    event.preventDefault();
+
+    if (!login.id.trim() || !login.password.trim()) {
+      setLoginError('아이디와 비밀번호를 모두 입력해주세요.');
+      return;
+    }
+
+    setIsLoginLoading(true);
+    setLoginError('');
+
+    try {
+      const loggedInUser = await loginWithSmu({ id: login.id.trim(), password: login.password });
+      setUser({ id: loggedInUser.nickname || login.id.trim() });
+      setLogin(emptyLogin);
+    } catch (error) {
+      setLoginError(error.message || '학교 로그인에 실패했습니다.');
+    } finally {
+      setIsLoginLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    if (!window.confirm('로그아웃 하시겠습니까?')) return;
+
+    await logoutFromApi();
+    resetSession();
   };
 
   const toggleTag = (tag) => {
@@ -66,6 +114,12 @@ export default function App() {
       const reply = await askNotice({ question, filters });
       setMessages((current) => [...current, makeMessage('bot', reply.message, reply.notices)]);
     } catch (error) {
+      if (error.status === 401) {
+        await logoutFromApi();
+        resetSession('학교 세션이 만료되었습니다. 다시 로그인해주세요.');
+        return;
+      }
+
       setMessages((current) => [
         ...current,
         makeMessage('bot', error.message || '잠시 후 다시 시도해주세요.', []),
@@ -75,8 +129,28 @@ export default function App() {
     }
   };
 
+  if (!authReady) {
+    return (
+      <main className="login-page">
+        <div className="login-loading">로그인 상태를 확인하고 있습니다...</div>
+      </main>
+    );
+  }
+
   if (!user) {
-    return <LoginPage login={login} hasError={loginError} onChange={setLogin} onSubmit={loginUser} />;
+    return (
+      <LoginPage
+        errorMessage={loginError}
+        hasError={Boolean(loginError)}
+        isSubmitting={isLoginLoading}
+        login={login}
+        onChange={(nextLogin) => {
+          setLogin(nextLogin);
+          if (loginError) setLoginError('');
+        }}
+        onSubmit={loginUser}
+      />
+    );
   }
 
   return (
@@ -119,7 +193,7 @@ export default function App() {
   );
 }
 
-function LoginPage({ login, hasError, onChange, onSubmit }) {
+function LoginPage({ login, errorMessage, hasError, isSubmitting, onChange, onSubmit }) {
   return (
     <main className="login-page">
       <form className={`login-wrap ${hasError ? 'shake' : ''}`} onSubmit={onSubmit}>
@@ -169,12 +243,13 @@ function LoginPage({ login, hasError, onChange, onSubmit }) {
             />
           </label>
 
-          <button className="btn-login" type="submit">
-            로그인 →
+          <button className="btn-login" disabled={isSubmitting} type="submit">
+            {isSubmitting ? '로그인 중...' : '로그인 →'}
           </button>
+          {errorMessage && <p className="login-error">{errorMessage}</p>}
           <p className="login-hint">
-            UI 프로토타입입니다. 어떤 정보로든 로그인 가능합니다.
-            <br />실 서비스 연동 시 API 인증으로 교체됩니다.
+            상명대학교 통합 로그인 계정으로 인증합니다.
+            <br />세션은 사용 중 자동으로 갱신됩니다.
           </p>
         </section>
       </form>

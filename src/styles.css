@@ -136,7 +136,18 @@ button:disabled { cursor: not-allowed; }
 }
 .btn-login:hover { opacity: 0.88; }
 .btn-login:active { transform: scale(0.98); }
+.btn-login:disabled { opacity: .65; transform: none; }
+.login-error { margin-top: 12px; text-align: center; font-size: 12px; color: #FCA5A5; line-height: 1.5; }
 .login-hint { margin-top: 20px; text-align: center; font-size: 11px; color: var(--text-3); line-height: 1.5; }
+.login-loading {
+  padding: 18px 22px;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 14px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+}
 
 .app-shell {
   display: flex;

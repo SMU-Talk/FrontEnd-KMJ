@@ -1,9 +1,8 @@
 import { MOCK_NOTICES } from '../noticeData.js';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { apiRequest, isApiConfigured } from './client.js';
 
 export async function askNotice({ question, filters }) {
-  if (API_BASE_URL) {
+  if (isApiConfigured()) {
     return requestNoticeApi({ question, filters });
   }
 
@@ -12,17 +11,12 @@ export async function askNotice({ question, filters }) {
 }
 
 async function requestNoticeApi(payload) {
-  const response = await fetch(`${API_BASE_URL}/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    throw new Error('공지 검색 API 요청에 실패했습니다.');
-  }
-
-  return normalizeChatResponse(await response.json());
+  return normalizeChatResponse(
+    await apiRequest('/chat', {
+      method: 'POST',
+      body: payload,
+    }),
+  );
 }
 
 function normalizeChatResponse(data) {
