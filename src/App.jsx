@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { loginWithSmu, logoutFromApi, refreshLogin, restoreLogin } from './api/authApi.js';
 import { askNotice } from './api/noticeApi.js';
 import { DEPT_TREE, QUICK_QUESTIONS, TAGS } from './noticeData.js';
@@ -468,13 +471,27 @@ function Welcome({ onQuickAsk }) {
 function MessageBubble({ message, user }) {
   const isBot = message.role === 'bot';
   const avatar = isBot ? '🤖' : getInitial(user.id);
+  const normalizedText = normalizeBotText(message.text);
 
   return (
     <article className={`msg-row ${message.role}`}>
       {isBot && <div className="msg-ava bot">{avatar}</div>}
       <div className="msg-body">
         <div className="bubble">
-          <p>{message.text}</p>
+          {isBot ? (
+            <div className="md">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkBreaks]}
+                components={{
+                  a: ({ node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                }}
+              >
+                {normalizedText}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <p className="user-text">{message.text}</p>
+          )}
           {message.notices.map((notice) => (
             <NoticeCard key={`${notice.date}-${notice.title}`} notice={notice} />
           ))}
@@ -484,6 +501,26 @@ function MessageBubble({ message, user }) {
       {!isBot && <div className="msg-ava user">{avatar}</div>}
     </article>
   );
+}
+
+// LLM 답변이 한 줄로 붙어서 오는 경우(예: "1. **제목**: ... 2. **제목**: ..." )를
+// 사람이 읽기 좋도록 줄바꿈/리스트 패턴으로 정규화한다.
+function normalizeBotText(raw) {
+  if (!raw) return '';
+  let text = String(raw).replace(/\r\n/g, '\n');
+
+  // "1." "2." 등 번호 매기기 앞에 줄바꿈 (이미 줄바꿈이면 그대로)
+  text = text.replace(/\s+(?=(?:\d{1,2})\.\s)/g, '\n\n');
+  // 한 줄에 들어 있는 메타 라벨들을 각각 개행
+  text = text.replace(/\s*(\*\*(?:제목|날짜|소속|태그|작성자|마감|기간|장소|문의|첨부|URL|링크)\*\*\s*[:：])/g, '\n$1');
+  // 연속된 공백/탭 정리 (개행은 보존)
+  text = text.replace(/[ \t]{2,}/g, ' ');
+  // 라인 머리 공백 제거
+  text = text
+    .split('\n')
+    .map((line) => line.replace(/^[ \t]+/, ''))
+    .join('\n');
+  return text.trim();
 }
 
 function NoticeCard({ notice }) {
