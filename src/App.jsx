@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { loginWithSmu, logoutFromApi, refreshLogin, restoreLogin } from './api/authApi.js';
-import { streamNotice } from './api/noticeApi.js';
+import { downloadArtifact, streamNotice } from './api/noticeApi.js';
 import { DEPT_TREE, QUICK_QUESTIONS, TAGS } from './noticeData.js';
 
 const emptyLogin = { id: '', password: '' };
@@ -124,6 +124,9 @@ export default function App() {
       {
         onNotices: (notices) => {
           setMessages((current) => current.map((m) => (m.id === botId ? { ...m, notices } : m)));
+        },
+        onArtifacts: (artifacts) => {
+          setMessages((current) => current.map((m) => (m.id === botId ? { ...m, artifacts } : m)));
         },
         onToken: (text) => {
           receivedFirstToken = true;
@@ -461,8 +464,15 @@ function FilterBar({ filters, onClearMajor, onRemoveTag }) {
 function MessageList({ isLoading, messages, onQuickAsk, user }) {
   const lastMsg = messages[messages.length - 1];
   const hasEmptyBotPlaceholder =
-    lastMsg && lastMsg.role === 'bot' && !lastMsg.text && (lastMsg.notices?.length || 0) === 0;
-  const listRef = useAutoScroll(messages.length + (lastMsg?.text?.length || 0), isLoading);
+    lastMsg &&
+    lastMsg.role === 'bot' &&
+    !lastMsg.text &&
+    (lastMsg.notices?.length || 0) === 0 &&
+    (lastMsg.artifacts?.length || 0) === 0;
+  const listRef = useAutoScroll(
+    messages.length + (lastMsg?.text?.length || 0) + (lastMsg?.artifacts?.length || 0),
+    isLoading,
+  );
 
   return (
     <div className="msgs" ref={listRef}>
@@ -500,7 +510,8 @@ function MessageBubble({ message, user }) {
   const isBot = message.role === 'bot';
   const avatar = isBot ? '🤖' : getInitial(user.id);
   const normalizedText = normalizeBotText(message.text);
-  const showInlineTyping = isBot && !message.text && (message.notices?.length || 0) === 0;
+  const showInlineTyping =
+    isBot && !message.text && (message.notices?.length || 0) === 0 && (message.artifacts?.length || 0) === 0;
 
   return (
     <article className={`msg-row ${message.role}`}>
@@ -531,6 +542,9 @@ function MessageBubble({ message, user }) {
           )}
           {message.notices.map((notice) => (
             <NoticeCard key={`${notice.date}-${notice.title}`} notice={notice} />
+          ))}
+          {(message.artifacts || []).map((artifact) => (
+            <ArtifactCard key={artifact.id} artifact={artifact} />
           ))}
         </div>
         <time className="msg-time">{message.time}</time>
@@ -572,6 +586,43 @@ function NoticeCard({ notice }) {
       <p className="nc-body">{notice.body}</p>
     </article>
   );
+}
+
+function ArtifactCard({ artifact }) {
+  const [status, setStatus] = useState('');
+
+  const handleDownload = async () => {
+    setStatus('다운로드 중...');
+    try {
+      await downloadArtifact(artifact);
+      setStatus('다운로드 완료');
+    } catch (error) {
+      setStatus(error?.message || '다운로드 실패');
+    }
+  };
+
+  return (
+    <article className="artifact-card">
+      <div className="artifact-main">
+        <span className="artifact-badge">ZIP</span>
+        <div className="artifact-meta">
+          <h3 className="artifact-title">{artifact.label}</h3>
+          <p className="artifact-sub">{formatFileSize(artifact.size_bytes)}</p>
+        </div>
+      </div>
+      <button className="artifact-download" type="button" onClick={handleDownload}>
+        다운로드
+      </button>
+      {status && <p className="artifact-status">{status}</p>}
+    </article>
+  );
+}
+
+function formatFileSize(size) {
+  if (!Number.isFinite(size) || size <= 0) return '파일';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function TypingBubble() {
@@ -644,8 +695,9 @@ function useAutoScroll(dependency, isLoading) {
   return ref;
 }
 
-function makeMessage(role, text, notices = [], id) {
+function makeMessage(role, text, notices = [], id, artifacts = []) {
   return {
+    artifacts,
     id: id || `${role}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     notices,
     role,

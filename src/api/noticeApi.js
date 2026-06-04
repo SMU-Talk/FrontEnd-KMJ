@@ -1,6 +1,34 @@
 import { MOCK_NOTICES } from '../noticeData.js';
 import { API_BASE_URL, apiRequest, getAccessToken, isApiConfigured } from './client.js';
 
+export async function downloadArtifact(artifact) {
+  if (!artifact?.url) {
+    throw new Error('다운로드할 파일 정보가 없습니다.');
+  }
+
+  const token = getAccessToken();
+  const response = await fetch(`${API_BASE_URL}${artifact.url}`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    const detail = await safeText(response);
+    throw new Error(detail || '파일 다운로드에 실패했습니다.');
+  }
+
+  const blob = await response.blob();
+  const objectUrl = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = artifact.label || 'download';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(objectUrl);
+}
+
 export async function askNotice({ question, filters }) {
   if (isApiConfigured()) {
     return requestNoticeApi({ question, filters });
@@ -23,6 +51,8 @@ function normalizeChatResponse(data) {
   return {
     message: data.message ?? data.answer ?? '응답 메시지가 비어 있습니다.',
     notices: Array.isArray(data.notices) ? data.notices : [],
+    artifacts: Array.isArray(data.artifacts) ? data.artifacts : [],
+    agent: data.agent ?? null,
   };
 }
 
@@ -33,6 +63,7 @@ function normalizeChatResponse(data) {
  * @param {{question:string, filters:object}} payload
  * @param {{
  *   onNotices?: (notices:Array)=>void,
+ *   onArtifacts?: (artifacts:Array)=>void,
  *   onToken?:   (text:string)=>void,
  *   onError?:   (err:Error)=>void,
  *   onDone?:    ()=>void,
@@ -40,7 +71,7 @@ function normalizeChatResponse(data) {
  * }} callbacks
  */
 export async function streamNotice(payload, callbacks = {}) {
-  const { onNotices, onToken, onError, onDone, signal } = callbacks;
+  const { onArtifacts, onNotices, onToken, onError, onDone, signal } = callbacks;
 
   if (!isApiConfigured()) {
     return mockStream(payload, callbacks);
@@ -108,6 +139,9 @@ export async function streamNotice(payload, callbacks = {}) {
           case 'notices':
             onNotices?.(Array.isArray(data?.notices) ? data.notices : []);
             break;
+          case 'artifacts':
+            onArtifacts?.(Array.isArray(data?.artifacts) ? data.artifacts : []);
+            break;
           case 'token':
             if (typeof data?.text === 'string') onToken?.(data.text);
             break;
@@ -155,10 +189,11 @@ async function safeText(response) {
   try { return await response.text(); } catch { return ''; }
 }
 
-async function mockStream({ question, filters }, { onNotices, onToken, onDone }) {
+async function mockStream({ question, filters }, { onArtifacts, onNotices, onToken, onDone }) {
   await wait(200);
   const reply = createMockReply(question, filters);
   onNotices?.(reply.notices || []);
+  onArtifacts?.(reply.artifacts || []);
   const words = reply.message.split(/(\s+)/);
   for (const w of words) {
     await wait(30);

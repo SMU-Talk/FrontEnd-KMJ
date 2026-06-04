@@ -562,6 +562,64 @@ button:disabled { cursor: not-allowed; }
 .nc-title { font-size: 13px; font-weight: 600; color: var(--text-1); margin-bottom: 5px; }
 .nc-body { color: var(--text-2); font-size: 13px; }
 
+.artifact-card {
+  margin-top: 10px;
+  padding: 12px;
+  background: rgba(79,158,255,0.10);
+  border: 1px solid rgba(79,158,255,0.35);
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+.artifact-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.artifact-badge {
+  flex-shrink: 0;
+  min-width: 34px;
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: var(--bg-base);
+  border: 1px solid var(--border-mid);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+}
+.artifact-meta { min-width: 0; }
+.artifact-title {
+  color: var(--text-1);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.artifact-sub {
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: 11px;
+}
+.artifact-download {
+  padding: 7px 11px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.artifact-download:hover { opacity: .86; }
+.artifact-status {
+  grid-column: 1 / -1;
+  color: var(--text-2);
+  font-size: 11px;
+}
+
 .typing-row { display: flex; gap: 11px; align-items: flex-end; }
 .typing-bubble {
   padding: 12px 16px;
